@@ -1,20 +1,44 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser,BaseUserManager, AbstractBaseUser
+
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import datetime
 
 
-class User(AbstractUser):
-    """Extended User model for authentication"""
+class UserManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError("The Email field must be set")
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self.create_user(email, password, **extra_fields)
+
+
+  
+class User(AbstractBaseUser):
     USER_TYPE_CHOICES = [
         ('patient', 'Patient'),
         ('doctor', 'Doctor'),
         ('admin', 'Admin'),
     ]
-    
+    first_name = models.CharField(max_length=255, blank=False)
+    last_name = models.CharField(max_length=255, blank= False)
     user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
+    email = models.CharField(unique=True)
     phone_number = models.CharField(
         max_length=15,
         validators=[RegexValidator(regex=r'^\+?1?\d{9,15}$', 
@@ -23,7 +47,14 @@ class User(AbstractUser):
     date_of_birth = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_staff = models.BooleanField(default=False)
+    is_superuser = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    objects = UserManager()
+    USERNAME_FIELD = 'email'  # what field will be used to log in
+    REQUIRED_FIELDS = ['first_name', 'last_name', 'user_type', 'phone_number']  # required for createsuperuser
+
+
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.user_type})"
@@ -69,7 +100,7 @@ class Doctor(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='doctor_profile')
     # Professional Information
     license_number = models.CharField(max_length=50, unique=True)
-    specializations = models.CharField(blank=True, related_name='doctors')
+    specializations = models.CharField(blank=True)
     years_of_experience = models.PositiveIntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(50)]
     )
@@ -105,7 +136,6 @@ class DoctorAvailability(models.Model):
         (6, 'Sunday'),
     ]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='availability_schedule')
     weekday = models.IntegerField(choices=WEEKDAY_CHOICES)
     start_time = models.TimeField()

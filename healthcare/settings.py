@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,7 +26,17 @@ SECRET_KEY = 'django-insecure-f=ubc-d9x%20&%*p(_m#6nauhat^-$!ru^rihk-#-$cdipl(&1
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
+CORS_ALLOW_HEADERS = [
+    "x-auth-token",
+    "Content-Type",
+    "Authorization",
+    "Accept",
+    "Origin",
+    "User-Agent",
+    "X-Requested-With",
+]
+
 
 
 # Application definition
@@ -38,8 +49,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'core',
-    'restframework',
+    'rest_framework',
 ]
+AUTH_USER_MODEL = 'core.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -67,7 +79,16 @@ TEMPLATES = [
         },
     },
 ]
-
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config("DB_NAME",  default='health_db'),
+        "USER": config("DB_USER", default='postgres'),
+        "PASSWORD": config("DB_PASSWORD",  default='2000'),
+        "HOST": config("DB_HOST", default='localhost'),
+        "PORT": config("DB_PORT",  default='5432'),
+    }
+}
 WSGI_APPLICATION = 'healthcare.wsgi.application'
 
 
